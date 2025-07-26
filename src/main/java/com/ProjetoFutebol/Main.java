@@ -10,32 +10,38 @@ import java.util.Map;
 
 public class Main {
     public static void main(String[] args) {
-        // Configura o servidor para servir os ficheiros principais (HTML, CSS, JS) da pasta 'public'
-        Spark.staticFiles.location("/public");
+        // Define a porta em que o servidor irá rodar
         Spark.port(3000);
         Gson gson = new Gson();
 
-        // CORREÇÃO: Adicionada uma rota explícita para servir os ficheiros JSON.
-        // Isto garante que os ficheiros na pasta 'resources/public/json' são encontrados.
-        Spark.get("/json/:fileName", (req, res) -> {
-            String fileName = req.params(":fileName");
-            res.type("application/json; charset=utf-8");
+        // --- ROTAS PARA SERVIR FICHEIROS ESTÁTICOS ---
+        // Esta é a forma correta de servir ficheiros de dentro de um JAR.
 
-            // Usa o ClassLoader para ler um ficheiro a partir da pasta 'resources'
-            try (InputStream is = Main.class.getResourceAsStream("/public/json/" + fileName)) {
-                if (is == null) {
-                    res.status(404);
-                    return "{\"error\": \"Ficheiro não encontrado: " + fileName + "\"}";
-                }
-                // Converte o conteúdo do ficheiro para uma String
-                return new String(is.readAllBytes(), StandardCharsets.UTF_8);
-            } catch (Exception e) {
-                res.status(500);
-                return "{\"error\": \"Erro ao ler o ficheiro: " + fileName + "\"}";
-            }
+        // Rota para a página principal
+        Spark.get("/", (req, res) -> {
+            res.type("text/html");
+            return readResource("/public/index.html");
         });
 
-        // Rota da API principal
+        // Rota para os ficheiros CSS e JS
+        Spark.get("/:fileName", (req, res) -> {
+            String fileName = req.params(":fileName");
+            if (fileName.endsWith(".css")) {
+                res.type("text/css");
+            } else if (fileName.endsWith(".js")) {
+                res.type("application/javascript");
+            }
+            return readResource("/public/" + fileName);
+        });
+
+        // Rota para os ficheiros JSON
+        Spark.get("/json/:fileName", (req, res) -> {
+            res.type("application/json; charset=utf-8");
+            return readResource("/public/json/" + req.params(":fileName"));
+        });
+
+
+        // --- ROTA DA API PRINCIPAL ---
         Spark.get("/api/stats", (req, res) -> {
             String team1Query = req.queryParams("team1");
             String team2Query = req.queryParams("team2");
@@ -67,5 +73,20 @@ public class Main {
         });
 
         System.out.println("Servidor iniciado em http://localhost:3000");
+    }
+
+    /**
+     * Função auxiliar para ler um ficheiro a partir da pasta 'resources'.
+     * @param path O caminho para o ficheiro dentro de 'resources'.
+     * @return O conteúdo do ficheiro como uma String.
+     * @throws Exception Se o ficheiro não for encontrado.
+     */
+    private static String readResource(String path) throws Exception {
+        try (InputStream is = Main.class.getResourceAsStream(path)) {
+            if (is == null) {
+                throw new Exception("Recurso não encontrado: " + path);
+            }
+            return new String(is.readAllBytes(), StandardCharsets.UTF_8);
+        }
     }
 }
