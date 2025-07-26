@@ -34,10 +34,23 @@ public class Main {
             return readResource("/public/" + fileName);
         });
 
-        // Rota para os ficheiros JSON
+        // Rota para os ficheiros JSON com depuração melhorada
         Spark.get("/json/:fileName", (req, res) -> {
+            String fileName = req.params(":fileName");
+            System.out.println("\n[DEBUG] Recebido pedido para o ficheiro JSON: " + fileName);
             res.type("application/json; charset=utf-8");
-            return readResource("/public/json/" + req.params(":fileName"));
+
+            try {
+                String content = readResource("/public/json/" + fileName);
+                // Imprime uma amostra do conteúdo para verificação
+                String contentSample = content.length() > 100 ? content.substring(0, 100) + "..." : content;
+                System.out.println("[DEBUG] Amostra do conteúdo de '" + fileName + "': " + contentSample.replaceAll("\n", ""));
+                return content;
+            } catch (Exception e) {
+                System.err.println("[ERRO] Falha ao ler o recurso: " + e.getMessage());
+                res.status(404);
+                return "{\"error\": \"Ficheiro JSON não encontrado no servidor: " + fileName + "\"}";
+            }
         });
 
 
@@ -82,9 +95,10 @@ public class Main {
      * @throws Exception Se o ficheiro não for encontrado.
      */
     private static String readResource(String path) throws Exception {
+        // Procura pelo ficheiro dentro do JAR/classpath
         try (InputStream is = Main.class.getResourceAsStream(path)) {
             if (is == null) {
-                throw new Exception("Recurso não encontrado: " + path);
+                throw new Exception("Recurso não encontrado no classpath: " + path);
             }
             return new String(is.readAllBytes(), StandardCharsets.UTF_8);
         }
