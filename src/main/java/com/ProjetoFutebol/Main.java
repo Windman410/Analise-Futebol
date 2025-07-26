@@ -15,12 +15,12 @@ public class Main {
         Gson gson = new Gson();
 
         // --- ROTAS PARA SERVIR FICHEIROS ESTÁTICOS ---
-        // Esta é a forma correta de servir ficheiros de dentro de um JAR.
+        // Rotas explícitas para garantir o funcionamento dentro de um JAR.
 
         // Rota para a página principal
         Spark.get("/", (req, res) -> {
             res.type("text/html");
-            return readResource("/public/index.html");
+            return readResource("public/index.html");
         });
 
         // Rota para os ficheiros CSS e JS
@@ -31,7 +31,7 @@ public class Main {
             } else if (fileName.endsWith(".js")) {
                 res.type("application/javascript");
             }
-            return readResource("/public/" + fileName);
+            return readResource("public/" + fileName);
         });
 
         // Rota para os ficheiros JSON com depuração melhorada
@@ -41,8 +41,7 @@ public class Main {
             res.type("application/json; charset=utf-8");
 
             try {
-                String content = readResource("/public/json/" + fileName);
-                // Imprime uma amostra do conteúdo para verificação
+                String content = readResource("public/json/" + fileName);
                 String contentSample = content.length() > 100 ? content.substring(0, 100) + "..." : content;
                 System.out.println("[DEBUG] Amostra do conteúdo de '" + fileName + "': " + contentSample.replaceAll("\n", ""));
                 return content;
@@ -90,16 +89,23 @@ public class Main {
 
     /**
      * Função auxiliar para ler um ficheiro a partir da pasta 'resources'.
-     * @param path O caminho para o ficheiro dentro de 'resources'.
+     * @param path O caminho para o ficheiro a partir da raiz de 'resources'.
      * @return O conteúdo do ficheiro como uma String.
      * @throws Exception Se o ficheiro não for encontrado.
      */
     private static String readResource(String path) throws Exception {
-        // Procura pelo ficheiro dentro do JAR/classpath
-        try (InputStream is = Main.class.getResourceAsStream(path)) {
-            if (is == null) {
-                throw new Exception("Recurso não encontrado no classpath: " + path);
-            }
+        System.out.println("[DEBUG] A tentar ler recurso do classpath: " + path);
+        // CORREÇÃO: Usa o ClassLoader do contexto da thread, que é mais robusto em diferentes ambientes.
+        // O caminho para getResourceAsStream do ClassLoader não deve começar com '/'.
+        InputStream is = Thread.currentThread().getContextClassLoader().getResourceAsStream(path);
+
+        if (is == null) {
+            System.err.println("[ERRO] Recurso não encontrado com o ClassLoader: " + path);
+            throw new Exception("Recurso não encontrado no classpath: " + path);
+        }
+
+        System.out.println("[DEBUG] Recurso encontrado com sucesso. A ler o conteúdo...");
+        try (is) { // try-with-resources garante que o InputStream é fechado
             return new String(is.readAllBytes(), StandardCharsets.UTF_8);
         }
     }
