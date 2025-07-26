@@ -69,7 +69,7 @@ public class Scraper {
 
             // Etapa 5: Extrair o nome do time
             System.out.println("[DEBUG] Aguardando entrar na pagina do time");
-            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(60));
             System.out.println("[DEBUG] site atual: " + driver.getCurrentUrl());
             System.out.println("[DEBUG] Verificando se esta na pagina do time e extraindo seu nome");
             WebElement teamNameElement = wait.until(ExpectedConditions.presenceOfElementLocated(By.xpath(TeamStatsPage.TEAM_NAME_SELECTOR)));
