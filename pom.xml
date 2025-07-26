@@ -56,7 +56,19 @@
           <release>11</release>
         </configuration>
       </plugin>
-      <!-- Plugin para criar um "fat JAR" executável -->
+
+      <!-- CORREÇÃO: Adicionada a configuração para a execução local -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>3.3.0</version>
+        <configuration>
+          <!-- Diz ao Maven qual a classe que contém o método 'main' -->
+          <mainClass>com.ProjetoFutebol.Main</mainClass>
+        </configuration>
+      </plugin>
+
+      <!-- Mantido o plugin para criar o "fat JAR" para futuro deploy -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
