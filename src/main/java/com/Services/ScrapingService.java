@@ -3,10 +3,14 @@ package com.Services;
 import com.ProjetoFutebol.Stats;
 import com.PageObjects.SearchPage;
 import com.PageObjects.TeamStatsPage;
+import com.Utils.TableExtractor;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import org.openqa.selenium.By;
 import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
@@ -16,6 +20,7 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 // Esta classe contém toda a lógica de negócio e as ações de scraping.
 // Ela utiliza os localizadores definidos nas classes PageObjects.
@@ -61,49 +66,33 @@ public class ScrapingService {
                     System.out.println("[DEBUG] Link da equipa masculina encontrado: " + url);
                     return url;
                 } catch (Exception e) {
-                    // Ignora e continua se este item não tiver o link esperado
+                    e.printStackTrace();
                 }
             }
         }
         return null;
     }
 
-    public Stats extractStatsFromTeamPage() {
+    public String extractStatsFromTeamPage() throws Exception {
         System.out.println("[DEBUG] A aguardar pela tabela de jogos na página do time...");
-        wait.until(ExpectedConditions.presenceOfElementLocated(TeamStatsPage.MATCHLOG_TABLE));
+        wait.until(ExpectedConditions.presenceOfElementLocated(By.xpath("//h2[contains(text(),'Scores & Fixtures')]/../../div/table")));
         System.out.println("[DEBUG] Tabela de jogos visível.");
 
-        Document soup = Jsoup.parse(driver.getPageSource());
-        Stats stats = new Stats();
+        // 1. Defina o seletor da tabela que quer extrair
+        String seletorDaTabelaDeJogadores = "//h2[contains(text(),'Scores & Fixtures')]/../../div/table";
 
-        Element teamNameTag = soup.selectFirst(TeamStatsPage.TEAM_NAME_SELECTOR);
-        stats.teamName = (teamNameTag != null) ? teamNameTag.text() : "Nome não encontrado";
+        // 2. Chame o método genérico de extração
+        List<Map<String, String>> dadosDosJogadores = TableExtractor.extractTableData(this.driver, seletorDaTabelaDeJogadores);
 
-        Element summaryRow = soup.selectFirst(TeamStatsPage.SUMMARY_ROW_SELECTOR);
-        if (summaryRow != null) {
-            Elements cols = summaryRow.select("td");
-            try {
-                stats.gamesPlayed = Integer.parseInt(cols.get(0).text());
-                stats.wins = Integer.parseInt(cols.get(1).text());
-                stats.draws = Integer.parseInt(cols.get(2).text());
-                stats.losses = Integer.parseInt(cols.get(3).text());
-                stats.goalsFor = Integer.parseInt(cols.get(5).text());
-                stats.goalsAgainst = Integer.parseInt(cols.get(6).text());
-            } catch (Exception e) {
-                System.out.println("[DEBUG] ERRO: Falha ao ler as colunas da linha de resumo: " + e.getMessage());
-            }
-        }
+        // 3. Converta o resultado para JSON para usar na sua API
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        String jsonOutput = gson.toJson(dadosDosJogadores);
 
-        Elements playerElements = soup.select(TeamStatsPage.PLAYERS_SELECTOR);
-        List<String> players = new ArrayList<>();
-        if (!playerElements.isEmpty()) {
-            for (int i = 0; i < Math.min(5, playerElements.size()); i++) {
-                players.add(playerElements.get(i).text());
-            }
-        }
-        stats.players = players;
+        // 4. Agora pode usar o 'jsonOutput'
+        System.out.println("--- Tabela de Jogadores em JSON ---");
+        System.out.println(jsonOutput);
 
-        return stats;
+        return jsonOutput;
     }
 }
 

@@ -1,14 +1,27 @@
 package com.ProjetoFutebol;
 
+import com.PageObjects.TeamStatsPage;
 import com.Services.ScrapingService;
+import com.Utils.TableExtractor;
 import io.github.bonigarcia.wdm.WebDriverManager;
+import org.openqa.selenium.By;
+import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
 import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.firefox.FirefoxOptions;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.WebDriverWait;
+
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class Scraper {
 
-    public static Stats fetchTeamStats(String teamQuery) throws Exception {
+    // O método foi atualizado para devolver um objeto TeamData, que contém múltiplas tabelas.
+    public static TeamData fetchTeamData(String teamQuery) throws Exception {
         System.out.printf("%n--- Iniciando busca para: %s ---%n", teamQuery);
 
         WebDriverManager.firefoxdriver().setup();
@@ -16,7 +29,6 @@ public class Scraper {
         options.addArguments("--headless");
         WebDriver driver = new FirefoxDriver(options);
 
-        // Cria uma instância do nosso serviço de scraping
         ScrapingService scrapingService = new ScrapingService(driver);
 
         try {
@@ -34,16 +46,73 @@ public class Scraper {
                 throw new Exception("NOT_FOUND: Não foi possível encontrar um link para a equipa masculina de '" + teamQuery + "'.");
             }
 
-            // Etapa 4: Aceder à página do time e extrair os dados
+            // Etapa 4: Aceder à página do time
             driver.get(teamUrl);
-            Stats stats = scrapingService.extractStatsFromTeamPage();
 
-            if (stats.gamesPlayed == 0) {
-                throw new Exception("SCRAPING_FAILED: O número de jogos extraído foi zero ou não foi encontrado.");
+            // Etapa 5: Extrair o nome do time
+            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+            WebElement teamNameElement = wait.until(ExpectedConditions.presenceOfElementLocated(By.xpath(TeamStatsPage.TEAM_NAME_SELECTOR)));
+            String teamName = teamNameElement.getText();
+
+            // Etapa 6: Extrair todas as tabelas desejadas usando o TableExtractor
+            Map<String, List<Map<String, String>>> extractedTables = new HashMap<>();
+            List<Map<String, String>> statsData;
+            System.out.println("[DEBUG] A extrair a tabela 'Standard Stats'...");
+            statsData = TableExtractor.extractTableData(driver, "//h2[contains(text(),'Standard Stats')]/../../div/table");
+            extractedTables.put("Standard Stats", statsData);
+
+            System.out.println("[DEBUG] A extrair a tabela 'Scores & Fixtures'...");
+            statsData = TableExtractor.extractTableData(driver, "//h2[contains(text(),'Scores & Fixtures')]/../../div/table");
+            extractedTables.put("Scores & Fixtures", statsData);
+
+            System.out.println("[DEBUG] A extrair a tabela 'Goalkeeping'...");
+            statsData = TableExtractor.extractTableData(driver, "//h2[contains(text(),'Goalkeeping')]/../../div/table");
+            extractedTables.put("Goalkeeping", statsData);
+
+            System.out.println("[DEBUG] A extrair a tabela 'Advanced Goalkeeping'...");
+            statsData = TableExtractor.extractTableData(driver, "//h2[contains(text(),'Advanced Goalkeeping')]/../../div/table");
+            extractedTables.put("Advanced Goalkeeping", statsData);
+
+            System.out.println("[DEBUG] A extrair a tabela 'Shooting'...");
+            statsData = TableExtractor.extractTableData(driver, "//h2[contains(text(),'Shooting')]/../../div/table");
+            extractedTables.put("Shooting", statsData);
+
+            System.out.println("[DEBUG] A extrair a tabela 'Passing'...");
+            statsData = TableExtractor.extractTableData(driver, "//h2[contains(text(),'Passing')]/../../div/table");
+            extractedTables.put("Passing", statsData);
+
+            System.out.println("[DEBUG] A extrair a tabela 'Pass Types'...");
+            statsData = TableExtractor.extractTableData(driver, "//h2[contains(text(),'Pass Types')]/../../div/table");
+            extractedTables.put("Pass Types", statsData);
+
+            System.out.println("[DEBUG] A extrair a tabela 'Goal and Shot Creation'...");
+            statsData = TableExtractor.extractTableData(driver, "//h2[contains(text(),'Goal and Shot Creation')]/../../div/table");
+            extractedTables.put("Goal and Shot Creation", statsData);
+
+            System.out.println("[DEBUG] A extrair a tabela 'Defensive Actions'...");
+            statsData = TableExtractor.extractTableData(driver, "//h2[contains(text(),'Defensive Actions')]/../../div/table");
+            extractedTables.put("Defensive Actions", statsData);
+
+            System.out.println("[DEBUG] A extrair a tabela 'Possession'...");
+            statsData = TableExtractor.extractTableData(driver, "//h2[contains(text(),'Possession')]/../../div/table");
+            extractedTables.put("Possession", statsData);
+
+            System.out.println("[DEBUG] A extrair a tabela 'Playing Time'...");
+            statsData = TableExtractor.extractTableData(driver, "//h2[contains(text(),'Playing Time')]/../../div/table");
+            extractedTables.put("Playing Time", statsData);
+
+            System.out.println("[DEBUG] A extrair a tabela 'Miscellaneous Stats'...");
+            statsData = TableExtractor.extractTableData(driver, "//h2[contains(text(),'Miscellaneous Stats')]/../../div/table");
+            extractedTables.put("Miscellaneous Stats", statsData);
+
+
+            if (statsData.isEmpty()) {
+                throw new Exception("SCRAPING_FAILED: Nenhuma tabela de dados foi extraída com sucesso.");
             }
 
             System.out.printf("--- Busca para %s concluída com sucesso. ---%n", teamQuery);
-            return stats;
+            // Retorna o objeto TeamData com o nome e o mapa de tabelas
+            return new TeamData(teamName, extractedTables);
 
         } finally {
             driver.quit();

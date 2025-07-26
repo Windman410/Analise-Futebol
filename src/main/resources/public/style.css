@@ -1,6 +1,7 @@
 body {
     font-family: 'Inter', sans-serif;
 }
+
 .loader {
     border: 4px solid #f3f3f3;
     border-top: 4px solid #3b82f6;
@@ -9,7 +10,50 @@ body {
     height: 24px;
     animation: spin 1s linear infinite;
 }
+
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+}
+
+/* Estilo para a seta do dropdown */
+.custom-select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    padding-right: 2.5rem;
+}
+
+/* --- NOVOS ESTILOS --- */
+
+/* Estilo para dropdowns ATIVADOS */
+select {
+    background-color: white;
+    color: #1f2937; /* Cor de texto padrão (cinza escuro) */
+    cursor: pointer;
+}
+
+/* Estilo para dropdowns DESATIVADOS */
+select:disabled {
+    background-color: #f3f4f6; /* Cor de fundo cinza claro */
+    color: #9ca3af; /* Cor de texto cinza mais claro */
+    cursor: not-allowed;
+    opacity: 0.7; /* Um pouco de opacidade para reforçar o estado desativado */
+}
+
+/* Estilo para o botão DESATIVADO */
+button:disabled {
+    background-color: #9ca3af; /* Cor de fundo cinza */
+    background-image: none; /* Remove o gradiente */
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* Remove o efeito de hover no botão desativado */
+button:disabled:hover {
+    transform: none;
 }

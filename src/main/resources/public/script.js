@@ -1,177 +1,268 @@
-// --- Elementos da UI ---
-const calculateBtn = document.getElementById('calculateBtn');
-const btnText = document.getElementById('btn-text');
-const btnLoader = document.getElementById('btn-loader');
+document.addEventListener('DOMContentLoaded', () => {
+    // --- Elementos da UI ---
+    const campeonatoSelect = document.getElementById('campeonato-select');
+    const time1Select = document.getElementById('time1-select');
+    const time2Select = document.getElementById('time2-select');
+    const calculateBtn = document.getElementById('calculateBtn');
 
-const resultsPanel = document.getElementById('resultsPanel');
-const loader = document.getElementById('loader');
-const errorPanel = document.getElementById('errorPanel');
-const resultsContent = document.getElementById('resultsContent');
+    const btnText = document.getElementById('btn-text');
+    const btnLoader = document.getElementById('btn-loader');
+    const resultsPanel = document.getElementById('resultsPanel');
+    const loader = document.getElementById('loader');
+    const errorPanel = document.getElementById('errorPanel');
+    const resultsContent = document.getElementById('resultsContent');
+    const team1Container = document.getElementById('team1-container');
+    const team2Container = document.getElementById('team2-container');
 
-// --- Funções de Cálculo (Poisson) ---
-function factorial(n) {
-    if (n < 0) return 0;
-    if (n === 0 || n === 1) return 1;
-    let result = 1;
-    for (let i = 2; i <= n; i++) {
-        result *= i;
-    }
-    return result;
-}
+    // Variável para armazenar a ordem das tabelas
+    let ordemDasTabelas = [];
 
-function poissonProbability(k, lambda) {
-    return (Math.pow(lambda, k) * Math.exp(-lambda)) / factorial(k);
-}
+    // --- Funções de Carregamento ---
 
-// --- Lógica Principal ---
-calculateBtn.addEventListener('click', async () => {
-    const team1Query = document.getElementById('team1Name').value.trim();
-    const team2Query = document.getElementById('team2Name').value.trim();
-
-    if (!team1Query || !team2Query) {
-        alert('Por favor, insira o nome dos dois times.');
-        return;
+    // Carrega a ordem das tabelas do JSON
+    async function carregarOrdemTabelas() {
+        try {
+            const response = await fetch('json/ordem_tabelas.json');
+            ordemDasTabelas = await response.json();
+        } catch (error) {
+            console.error("Erro ao carregar a ordem das tabelas, a usar ordem padrão:", error);
+            // Ordem de fallback caso o ficheiro não seja encontrado
+            ordemDasTabelas = ["Scores & Fixtures", "Standard Stats", "Shooting"];
+        }
     }
 
-    // 1. Preparar a UI para o carregamento
-    resultsPanel.classList.remove('hidden');
-    loader.classList.remove('hidden');
-    resultsContent.classList.add('hidden');
-    errorPanel.classList.add('hidden');
-    errorPanel.textContent = ''; // Limpa erros anteriores
-    calculateBtn.disabled = true;
-    btnText.classList.add('hidden');
-    btnLoader.classList.remove('hidden');
+    // Carrega a lista de campeonatos do JSON
+    async function carregarCampeonatos() {
+        try {
+            const response = await fetch('json/campeonatos.json');
+            const campeonatos = await response.json();
 
-    try {
-        // MUDANÇA: Buscar um time de cada vez para maior estabilidade.
-        
-        // --- BUSCA TIME 1 ---
-        console.log(`Buscando dados para: ${team1Query}`);
-        const response1 = await fetch(`/api/stats?team=${encodeURIComponent(team1Query)}`);
-        const stats1 = await response1.json();
-
-        if (stats1.code) { // Verifica se a resposta é um erro
-            throw new Error(`Erro ao buscar ${team1Query}: [Código ${stats1.code}] ${stats1.message} - ${stats1.details}`);
+            campeonatos.forEach((nomeCampeonato, index) => {
+                const option = document.createElement('option');
+                option.value = nomeCampeonato;
+                option.textContent = nomeCampeonato;
+                if (index === 0) {
+                    option.disabled = true;
+                    option.selected = true;
+                }
+                campeonatoSelect.appendChild(option);
+            });
+        } catch (error) {
+            console.error("Erro ao carregar campeonatos:", error);
+            alert("Não foi possível carregar a lista de campeonatos.");
         }
-        console.log(`Dados de ${team1Query} recebidos.`);
-        
-        // --- BUSCA TIME 2 ---
-        console.log(`Buscando dados para: ${team2Query}`);
-        const response2 = await fetch(`/api/stats?team=${encodeURIComponent(team2Query)}`);
-        const stats2 = await response2.json();
+    }
 
-        if (stats2.code) { // Verifica se a resposta é um erro
-            throw new Error(`Erro ao buscar ${team2Query}: [Código ${stats2.code}] ${stats2.message} - ${stats2.details}`);
+    // Carrega a lista de times com base no campeonato selecionado
+    async function carregarTimes(nomeCampeonato) {
+        // Limpa e desativa os dropdowns de times
+        time1Select.innerHTML = '<option value="">Selecione o Time 1</option>';
+        time2Select.innerHTML = '<option value="">Selecione o Time 2</option>';
+        time1Select.disabled = true;
+        time2Select.disabled = true;
+        calculateBtn.disabled = true;
+
+        if (!nomeCampeonato || nomeCampeonato === "Selecione um Campeonato") return;
+
+        const arquivoTimes = `json/${nomeCampeonato}.json`;
+
+        try {
+            const response = await fetch(arquivoTimes);
+            const times = await response.json();
+            times.sort(); // Ordena os times alfabeticamente
+
+            times.forEach(time => {
+                const option1 = document.createElement('option');
+                option1.value = time;
+                option1.textContent = time;
+                time1Select.appendChild(option1);
+
+                const option2 = document.createElement('option');
+                option2.value = time;
+                option2.textContent = time;
+                time2Select.appendChild(option2);
+            });
+
+            // Ativa os dropdowns
+            time1Select.disabled = false;
+            time2Select.disabled = false;
+
+        } catch (error) {
+            console.error(`Erro ao carregar times de ${arquivoTimes}:`, error);
+            alert(`Não foi possível carregar a lista de times para o campeonato selecionado.`);
         }
-        console.log(`Dados de ${team2Query} recebidos.`);
+    }
 
-        // 3. Realizar os cálculos com os dados recebidos
-        const team1Attack = stats1.goalsFor / stats1.gamesPlayed;
-        const team1Defense = stats1.goalsAgainst / stats1.gamesPlayed;
-        const team2Attack = stats2.goalsFor / stats2.gamesPlayed;
-        const team2Defense = stats2.goalsAgainst / stats2.gamesPlayed;
+    // --- Lógica de Eventos ---
 
-        const lambda1 = team1Attack * team2Defense; // Gols esperados do time 1
-        const lambda2 = team2Attack * team1Defense; // Gols esperados do time 2
+    // Quando o utilizador muda o campeonato
+    campeonatoSelect.addEventListener('change', (event) => {
+        const nomeCampeonatoSelecionado = event.target.value;
+        carregarTimes(nomeCampeonatoSelecionado);
+    });
 
-        let probTeam1Wins = 0, probTeam2Wins = 0, probDraw = 0;
-        const scoreProbs = [];
-
-        for (let i = 0; i <= 6; i++) { // Gols Time 1
-            for (let j = 0; j <= 6; j++) { // Gols Time 2
-                const prob = poissonProbability(i, lambda1) * poissonProbability(j, lambda2);
-                scoreProbs.push({ score: `${i} - ${j}`, prob: prob });
-                if (i > j) probTeam1Wins += prob;
-                else if (j > i) probTeam2Wins += prob;
-                else probDraw += prob;
+    // Ativa o botão de análise apenas quando dois times diferentes são selecionados
+    [time1Select, time2Select].forEach(select => {
+        select.addEventListener('change', () => {
+            const time1 = time1Select.value;
+            const time2 = time2Select.value;
+            if (time1 && time2 && time1 !== time2) {
+                calculateBtn.disabled = false;
+            } else {
+                calculateBtn.disabled = true;
             }
+        });
+    });
+
+    // Quando o botão de análise é clicado
+    calculateBtn.addEventListener('click', async () => {
+        const time1Query = time1Select.value;
+        const time2Query = time2Select.value;
+
+        // Preparar a UI para o carregamento
+        resultsPanel.classList.remove('hidden');
+        loader.classList.remove('hidden');
+        resultsContent.classList.add('hidden');
+        errorPanel.classList.add('hidden');
+
+        team1Container.style.minHeight = 'auto';
+        team2Container.style.minHeight = 'auto';
+
+        team1Container.innerHTML = '';
+        team2Container.innerHTML = '';
+        calculateBtn.disabled = true;
+        btnText.classList.add('hidden');
+        btnLoader.classList.remove('hidden');
+
+        try {
+            const response = await fetch(`/api/stats?team1=${encodeURIComponent(time1Query)}&team2=${encodeURIComponent(time2Query)}`);
+            const data = await response.json();
+
+            if (data.error) throw new Error(data.details || data.error);
+
+            displayResults(data);
+            loader.classList.add('hidden');
+            resultsContent.classList.remove('hidden');
+
+        } catch (error) {
+            loader.classList.add('hidden');
+            errorPanel.textContent = `Erro: ${error.message}`;
+            errorPanel.classList.remove('hidden');
+        } finally {
+            calculateBtn.disabled = false; // Reativa o botão mesmo se houver erro
+            btnText.classList.remove('hidden');
+            btnLoader.classList.add('hidden');
         }
-        
-        const totalProb = probTeam1Wins + probTeam2Wins + probDraw;
-        scoreProbs.sort((a, b) => b.prob - a.prob);
+    });
 
-        // 4. Exibir os resultados na tela
-        displayResults(stats1, stats2, probTeam1Wins / totalProb, probDraw / totalProb, probTeam2Wins / totalProb, scoreProbs.slice(0, 5), totalProb);
-        loader.classList.add('hidden');
-        resultsContent.classList.remove('hidden');
+    // --- Funções de Exibição ---
 
-    } catch (error) {
-        // 5. Tratar erros
-        loader.classList.add('hidden');
-        errorPanel.textContent = `${error.message}`;
-        errorPanel.classList.remove('hidden');
-    } finally {
-        // 6. Restaurar o botão
-        calculateBtn.disabled = false;
-        btnText.classList.remove('hidden');
-        btnLoader.classList.add('hidden');
+    function displayResults(data) {
+        if (data.team1Data) displayTeamData(team1Container, data.team1Data);
+        if (data.team2Data) displayTeamData(team2Container, data.team2Data);
+
+        // Lógica para igualar a altura das tabelas correspondentes
+        setTimeout(() => {
+            equalizeTableHeights();
+        }, 0);
     }
+
+    function displayTeamData(container, teamData) {
+        const teamTitle = document.createElement('h2');
+        teamTitle.className = 'text-3xl font-bold text-gray-800 mb-6 text-center';
+        teamTitle.textContent = teamData.teamName;
+        container.appendChild(teamTitle);
+
+        // Itera pela ordem definida que foi carregada do JSON
+        ordemDasTabelas.forEach(tableName => {
+            if (teamData.tables && teamData.tables[tableName]) {
+                createAndDisplayTable(container, tableName, teamData.tables[tableName]);
+            }
+        });
+    }
+
+    function createAndDisplayTable(container, tableName, tableData) {
+        if (!tableData || tableData.length === 0) return;
+
+        const tableWrapper = document.createElement('div');
+        tableWrapper.className = 'bg-white rounded-xl shadow-lg p-4 mb-6';
+        tableWrapper.dataset.tableName = tableName.replace(/\s+/g, '-');
+
+        const tableTitle = document.createElement('h3');
+        tableTitle.className = 'text-xl font-semibold text-gray-700 mb-4';
+        tableTitle.textContent = tableName;
+        tableWrapper.appendChild(tableTitle);
+
+        const tableContainer = document.createElement('div');
+        tableContainer.className = 'overflow-x-auto';
+        const table = document.createElement('table');
+        table.className = 'min-w-full text-sm';
+
+        const thead = document.createElement('thead');
+        thead.className = 'bg-gray-100';
+        const headerRow = document.createElement('tr');
+        const headers = Object.keys(tableData[0]);
+        headers.forEach(text => {
+            const th = document.createElement('th');
+            th.className = 'px-4 py-2 text-left font-medium text-gray-600';
+            th.textContent = text;
+            headerRow.appendChild(th);
+        });
+        thead.appendChild(headerRow);
+        table.appendChild(thead);
+
+        const tbody = document.createElement('tbody');
+        tableData.forEach(rowData => {
+            const tr = document.createElement('tr');
+            tr.className = 'border-b';
+            headers.forEach(header => {
+                const td = document.createElement('td');
+                td.className = 'px-4 py-2 text-gray-700';
+                td.textContent = rowData[header];
+                tr.appendChild(td);
+            });
+            tbody.appendChild(tr);
+        });
+        table.appendChild(tbody);
+
+        tableContainer.appendChild(table);
+        tableWrapper.appendChild(tableContainer);
+        container.appendChild(tableWrapper);
+    }
+
+    function equalizeTableHeights() {
+        console.log("A igualar alturas das tabelas...");
+        ordemDasTabelas.forEach(tableName => {
+            const safeTableName = tableName.replace(/\s+/g, '-');
+            const table1 = document.querySelector(`#team1-container [data-table-name="${safeTableName}"]`);
+            const table2 = document.querySelector(`#team2-container [data-table-name="${safeTableName}"]`);
+
+            if (table1 && table2) {
+                table1.style.minHeight = 'auto';
+                table2.style.minHeight = 'auto';
+
+                const height1 = table1.offsetHeight;
+                const height2 = table2.offsetHeight;
+                const maxHeight = Math.max(height1, height2);
+
+                table1.style.minHeight = `${maxHeight}px`;
+                table2.style.minHeight = `${maxHeight}px`;
+                console.log(`Altura da tabela "${tableName}" definida para ${maxHeight}px`);
+            }
+        });
+    }
+
+    // --- INICIALIZAÇÃO ---
+    async function init() {
+        // Garante que os dropdowns e o botão começam desativados
+        time1Select.disabled = true;
+        time2Select.disabled = true;
+        calculateBtn.disabled = true;
+
+        // Carrega primeiro a ordem das tabelas e depois os campeonatos
+        await carregarOrdemTabelas();
+        await carregarCampeonatos();
+    }
+
+    init(); // Chama a função de inicialização
 });
-
-function displayResults(stats1, stats2, prob1, probD, prob2, scores, totalProb) {
-    // Garante que a propriedade players seja um array antes de usar o .map
-    const team1Players = Array.isArray(stats1.players) ? stats1.players : [];
-    const team2Players = Array.isArray(stats2.players) ? stats2.players : [];
-
-    resultsContent.innerHTML = `
-        <div class="text-center mb-4">
-            <h2 class="text-3xl font-bold text-gray-800">${stats1.teamName} vs ${stats2.teamName}</h2>
-        </div>
-        
-        <!-- Probabilidades -->
-        <div>
-            <h3 class="text-xl font-semibold text-gray-800 mb-3">Probabilidades do Jogo</h3>
-            <div class="grid grid-cols-3 text-center bg-gray-100 p-4 rounded-lg">
-                <div>
-                    <div class="text-lg font-bold text-blue-600">${(prob1 * 100).toFixed(1)}%</div>
-                    <div class="text-sm text-gray-600">${stats1.teamName}</div>
-                </div>
-                <div>
-                    <div class="text-lg font-bold text-gray-700">${(probD * 100).toFixed(1)}%</div>
-                    <div class="text-sm text-gray-600">Empate</div>
-                </div>
-                <div>
-                    <div class="text-lg font-bold text-blue-600">${(prob2 * 100).toFixed(1)}%</div>
-                    <div class="text-sm text-gray-600">${stats2.teamName}</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Placares -->
-        <div>
-            <h3 class="text-xl font-semibold text-gray-800 mb-3">Placares Mais Prováveis</h3>
-            <table class="min-w-full bg-white rounded-lg border">
-                <thead class="bg-gray-200">
-                    <tr>
-                        <th class="p-3 text-left text-sm font-semibold text-gray-600">Placar</th>
-                        <th class="p-3 text-right text-sm font-semibold text-gray-600">Probabilidade</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${scores.map(s => `
-                        <tr class="border-t">
-                            <td class="p-3 text-left font-medium">${s.score}</td>
-                            <td class="p-3 text-right text-gray-600">${(s.prob / totalProb * 100).toFixed(2)}%</td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Jogadores -->
-        <div>
-            <h3 class="text-xl font-semibold text-gray-800 mb-3">Jogadores para Observar</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="bg-gray-50 p-3 rounded-lg">
-                    <h4 class="font-semibold text-gray-700 mb-2">${stats1.teamName}</h4>
-                    <ul class="list-disc list-inside">${team1Players.length > 0 ? team1Players.map(p => `<li class="text-gray-600">${p}</li>`).join('') : '<li class="text-gray-400">Nenhum jogador encontrado.</li>'}</ul>
-                </div>
-                <div class="bg-gray-50 p-3 rounded-lg">
-                    <h4 class="font-semibold text-gray-700 mb-2">${stats2.teamName}</h4>
-                    <ul class="list-disc list-inside">${team2Players.length > 0 ? team2Players.map(p => `<li class="text-gray-600">${p}</li>`).join('') : '<li class="text-gray-400">Nenhum jogador encontrado.</li>'}</ul>
-                </div>
-            </div>
-        </div>
-    `;
-}
