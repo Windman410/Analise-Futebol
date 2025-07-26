@@ -3,19 +3,37 @@ package com.ProjetoFutebol;
 import com.google.gson.Gson;
 import spark.Spark;
 
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
 public class Main {
     public static void main(String[] args) {
-        // Configura o servidor para servir TODOS os ficheiros da pasta 'public'
-        // Isto agora inclui a subpasta 'json'.
+        // Configura o servidor para servir os ficheiros principais (HTML, CSS, JS) da pasta 'public'
         Spark.staticFiles.location("/public");
         Spark.port(3000);
         Gson gson = new Gson();
 
-        // A rota especial para /json/:fileName foi REMOVIDA.
-        // O Spark irá agora servir os ficheiros JSON automaticamente.
+        // CORREÇÃO: Adicionada uma rota explícita para servir os ficheiros JSON.
+        // Isto garante que os ficheiros na pasta 'resources/public/json' são encontrados.
+        Spark.get("/json/:fileName", (req, res) -> {
+            String fileName = req.params(":fileName");
+            res.type("application/json; charset=utf-8");
+
+            // Usa o ClassLoader para ler um ficheiro a partir da pasta 'resources'
+            try (InputStream is = Main.class.getResourceAsStream("/public/json/" + fileName)) {
+                if (is == null) {
+                    res.status(404);
+                    return "{\"error\": \"Ficheiro não encontrado: " + fileName + "\"}";
+                }
+                // Converte o conteúdo do ficheiro para uma String
+                return new String(is.readAllBytes(), StandardCharsets.UTF_8);
+            } catch (Exception e) {
+                res.status(500);
+                return "{\"error\": \"Erro ao ler o ficheiro: " + fileName + "\"}";
+            }
+        });
 
         // Rota da API principal
         Spark.get("/api/stats", (req, res) -> {
