@@ -8,6 +8,8 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.firefox.FirefoxOptions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
@@ -23,11 +25,18 @@ public class Scraper {
     // O método foi atualizado para devolver um objeto TeamData, que contém múltiplas tabelas.
     public static TeamData fetchTeamData(String teamQuery) throws Exception {
         System.out.printf("%n--- Iniciando busca para: %s ---%n", teamQuery);
+// --- Configuração do Selenium para o Servidor (Render) ---
+        ChromeOptions options = new ChromeOptions();
+        // Estas opções são cruciais para rodar num ambiente de servidor
+        options.addArguments("--headless"); // Roda sem interface gráfica
+        options.addArguments("--no-sandbox");
+        options.addArguments("--disable-dev-shm-usage");
+        options.addArguments("--disable-gpu");
+        options.addArguments("--window-size=1920,1080");
 
-        WebDriverManager.firefoxdriver().setup();
-        FirefoxOptions options = new FirefoxOptions();
-        options.addArguments("--headless");
-        WebDriver driver = new FirefoxDriver(options);
+        // A Render irá instalar o ChromeDriver e colocá-lo no PATH,
+        // por isso não precisamos do WebDriverManager aqui.
+        WebDriver driver = new ChromeDriver(options);
 
         ScrapingService scrapingService = new ScrapingService(driver);
 
