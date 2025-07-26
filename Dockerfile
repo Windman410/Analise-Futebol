@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 COPY . .
 
-# CORREÇÃO: Adiciona permissão de execução ao Maven Wrapper
+# Adiciona permissão de execução ao Maven Wrapper
 RUN chmod +x ./mvnw
 
 # Executa o Maven para construir o projeto

@@ -25,17 +25,26 @@ public class Scraper {
     // O método foi atualizado para devolver um objeto TeamData, que contém múltiplas tabelas.
     public static TeamData fetchTeamData(String teamQuery) throws Exception {
         System.out.printf("%n--- Iniciando busca para: %s ---%n", teamQuery);
-// --- Configuração do Selenium para o Servidor (Render) ---
+
+        // --- Configuração do Selenium para o Servidor (Render) ---
         ChromeOptions options = new ChromeOptions();
-        // Estas opções são cruciais para rodar num ambiente de servidor
-        options.addArguments("--headless"); // Roda sem interface gráfica
+        options.addArguments("--headless");
         options.addArguments("--no-sandbox");
         options.addArguments("--disable-dev-shm-usage");
         options.addArguments("--disable-gpu");
         options.addArguments("--window-size=1920,1080");
 
-        // A Render irá instalar o ChromeDriver e colocá-lo no PATH,
-        // por isso não precisamos do WebDriverManager aqui.
+        // CORREÇÃO: Lógica para adaptar o ambiente
+        // A Render define a variável de ambiente "RENDER" automaticamente.
+        if (System.getenv("RENDER") == null) {
+            // Se NÃO estamos na Render (ambiente local), usa o WebDriverManager.
+            System.out.println("[DEBUG] Ambiente local detetado. A usar o WebDriverManager...");
+            WebDriverManager.chromedriver().setup();
+        } else {
+            // Se ESTAMOS na Render, assume que o ChromeDriver está no PATH.
+            System.out.println("[DEBUG] Ambiente da Render detetado. A usar o ChromeDriver do sistema.");
+        }
+
         WebDriver driver = new ChromeDriver(options);
 
         ScrapingService scrapingService = new ScrapingService(driver);
